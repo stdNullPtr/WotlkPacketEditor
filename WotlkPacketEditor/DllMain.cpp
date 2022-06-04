@@ -66,26 +66,26 @@ void PrintWinError()
 	std::cerr << "[WIN_ERR] " << GetLastError() << std::endl;
 }
 
-bool InitHooks()
+void MainLoop(const ConsoleHelper& console)
 {
 	const auto hModuleWs32{ GetModuleHandle("Ws2_32.dll") };
 	if (!hModuleWs32)
 	{
 		PrintWinError();
-		return false;
+		return;
 	}
 
 	const auto originalSendPacketAddress = reinterpret_cast<tSend>(GetProcAddress(hModuleWs32, "send"));
 	if (!originalSendPacketAddress)
 	{
 		PrintWinError();
-		return false;
+		return;
 	}
 	const auto originalSendPacketWrapperAddress = reinterpret_cast<tSendWrapper>((uintptr_t)GetModuleHandle(NULL) + 0x31EF80u);
 	if (!originalSendPacketAddress)
 	{
 		PrintWinError();
-		return false;
+		return;
 	}
 
 	constexpr int originalSendStolenBytesLen{ 5 };
@@ -97,18 +97,11 @@ bool InitHooks()
 	sendpacketGate = (tSend)sendHooker.getGatewayFuncAddress();
 	sendWrapperGate = (tSendWrapper)sendWrapperHooker.getGatewayFuncAddress();
 
-	return sendpacketGate && sendWrapperGate;
-}
-
-void MainLoop(const ConsoleHelper& console)
-{
-	const bool hookResult{ InitHooks() };
-
 	std::cout << "[INFO] Hooks placed!" << std::endl;
 
 	while (true)
 	{
-		if (!hookResult)
+		if (!sendpacketGate || !sendWrapperGate)
 		{
 			break;
 		}
