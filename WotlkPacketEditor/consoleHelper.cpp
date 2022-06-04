@@ -1,5 +1,5 @@
 // ReSharper disable CppClangTidyClangDiagnosticCastQual
-#include "consoleHelper.hpp"
+#include "ConsoleHelper.hpp"
 
 void ConsoleHelper::ClearScreen() const
 {
@@ -66,4 +66,9 @@ void ConsoleHelper::DestroyConsole() const
 
 ConsoleHelper::ConsoleHelper() : m_fInStream(nullptr), m_fOutStream(nullptr), m_fErrStream(nullptr), m_hStdOut(nullptr)
 {
+}
+
+void ConsoleHelper::PrintWinError()
+{
+	std::cerr << xor("[WIN_ERR] ") << GetLastError() << std::endl;
 }

@@ -18,7 +18,10 @@
     <ClCompile Include="DllMain.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="consoleHelper.cpp">
+    <ClCompile Include="ConsoleHelper.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Hooker.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -26,7 +29,7 @@
     <ClInclude Include="Hooker.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="consoleHelper.hpp">
+    <ClInclude Include="ConsoleHelper.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

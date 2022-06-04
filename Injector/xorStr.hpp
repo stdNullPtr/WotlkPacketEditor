@@ -49,7 +49,6 @@ namespace std
     using remove_const_t = typename remove_const<_Ty>::type;
 }
 #else
-#include <type_traits>
 #endif
 
 namespace skc

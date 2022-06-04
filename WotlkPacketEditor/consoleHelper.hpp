@@ -1,7 +1,7 @@
 #pragma once
-#include <Windows.h>
 #include <iostream>
-#include "../Injector/xorStr.hpp"
+#include <Windows.h>
+#include "../Injector/XorStr.hpp"
 
 class ConsoleHelper
 {
@@ -18,6 +18,7 @@ public:
 	void DestroyConsole() const;
 	void ClearScreen() const;
 	void ShowConsoleCursor(bool showFlag) const;
+	static void PrintWinError();
 private:
 	FILE* m_fInStream, * m_fOutStream, * m_fErrStream;
 	HANDLE m_hStdOut;

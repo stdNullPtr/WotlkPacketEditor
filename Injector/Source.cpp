@@ -4,7 +4,7 @@
 #include <TlHelp32.h>
 #include <fstream>
 #include <filesystem>
-#include "xorStr.hpp"
+#include "XorStr.hpp"
 
 DWORD GetProcId(const std::string& procName)
 {
