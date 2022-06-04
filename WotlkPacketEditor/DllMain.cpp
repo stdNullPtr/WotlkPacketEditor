@@ -66,80 +66,26 @@ void PrintWinError()
 	std::cerr << "[WIN_ERR] " << GetLastError() << std::endl;
 }
 
-bool Detour32(PVOID addressToHook, PVOID hookFunc, int len)
-{
-	if (len < 5) return false;
-
-	DWORD curProtection;
-	VirtualProtect(addressToHook, len, PAGE_EXECUTE_READWRITE, &curProtection);
-
-	std::memset(addressToHook, 0x90, len);
-
-	const uintptr_t relativeAddress = ((UINT_PTR)hookFunc - (UINT_PTR)addressToHook) - 5;
-
-	*(BYTE*)addressToHook = 0xE9;
-	*(UINT_PTR*)((UINT_PTR)addressToHook + 1) = relativeAddress;
-
-	VirtualProtect(addressToHook, len, curProtection, &curProtection);
-
-	return true;
-}
-
-PVOID CreateGateway(PVOID addressToHook, PVOID hookFunc, const intptr_t lenStolenBytes)
-{
-	// Make sure the length is greater than 5 since a jmp instruction is 5 bytes
-	if (lenStolenBytes < 5) return nullptr;
-
-	// Create the gateway (len + 5 for the overwritten bytes + the jmp)
-	PVOID gateway = VirtualAlloc(nullptr, lenStolenBytes + 5, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
-	if (!gateway)
-	{
-		PrintWinError();
-		return nullptr;
-	}
-
-	//Write the stolen bytes into the gateway
-	std::memcpy(gateway, addressToHook, lenStolenBytes);
-
-	// Get the gateway to destination addy
-	uintptr_t gatewayRelativeAddr = ((UINT_PTR)addressToHook - (UINT_PTR)gateway) - 5;
-
-	// Add the jmp opcode to the end of the gateway
-	*(BYTE*)((UINT_PTR)gateway + lenStolenBytes) = 0xE9;
-
-	// Add the address to the jmp
-	*(UINT_PTR*)((UINT_PTR)gateway + lenStolenBytes + 1) = gatewayRelativeAddr;
-
-	// Perform the detour
-	if (!Detour32(addressToHook, hookFunc, lenStolenBytes))
-	{
-		std::cout << "Detour failed!" << std::endl;
-		return nullptr;
-	}
-
-	return gateway;
-}
-
-void MainLoop(const ConsoleHelper& console)
+bool InitHooks()
 {
 	const auto hModuleWs32{ GetModuleHandle("Ws2_32.dll") };
 	if (!hModuleWs32)
 	{
 		PrintWinError();
-		return;
+		return false;
 	}
 
 	const auto originalSendPacketAddress = reinterpret_cast<tSend>(GetProcAddress(hModuleWs32, "send"));
 	if (!originalSendPacketAddress)
 	{
 		PrintWinError();
-		return;
+		return false;
 	}
 	const auto originalSendPacketWrapperAddress = reinterpret_cast<tSendWrapper>((uintptr_t)GetModuleHandle(NULL) + 0x31EF80u);
 	if (!originalSendPacketAddress)
 	{
 		PrintWinError();
-		return;
+		return false;
 	}
 
 	constexpr int originalSendStolenBytesLen{ 5 };
@@ -151,13 +97,18 @@ void MainLoop(const ConsoleHelper& console)
 	sendpacketGate = (tSend)sendHooker.getGatewayFuncAddress();
 	sendWrapperGate = (tSendWrapper)sendWrapperHooker.getGatewayFuncAddress();
 
+	return sendpacketGate && sendWrapperGate;
+}
+
+void MainLoop(const ConsoleHelper& console)
+{
+	const bool hookResult{ InitHooks() };
+
+	std::cout << "[INFO] Hooks placed!" << std::endl;
+
 	while (true)
 	{
-		if (!sendpacketGate)
-		{
-			break;
-		}
-		if (!sendWrapperGate)
+		if (!hookResult)
 		{
 			break;
 		}
