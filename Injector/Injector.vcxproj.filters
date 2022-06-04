@@ -20,7 +20,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\TeraTest\TeraTest\xorStr.hpp">
+    <ClInclude Include="xorStr.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

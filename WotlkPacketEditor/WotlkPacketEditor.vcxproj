@@ -135,11 +135,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\TeraTest\TeraTest\ConsoleHelper.cpp" />
+    <ClCompile Include="consoleHelper.cpp" />
     <ClCompile Include="DllMain.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\TeraTest\TeraTest\ConsoleHelper.hpp" />
+    <ClInclude Include="consoleHelper.hpp" />
     <ClInclude Include="Hooker.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -18,15 +18,15 @@
     <ClCompile Include="DllMain.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\TeraTest\TeraTest\ConsoleHelper.cpp">
+    <ClCompile Include="consoleHelper.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\TeraTest\TeraTest\ConsoleHelper.hpp">
+    <ClInclude Include="Hooker.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Hooker.hpp">
+    <ClInclude Include="consoleHelper.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
