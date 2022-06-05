@@ -5,6 +5,7 @@
 #include <Windows.h>
 #include "ConsoleHelper.hpp"
 #include "Hooker.hpp"  // NOLINT(clang-diagnostic-pragma-pack)
+#include "Settings.hpp"
 
 void MainLoop(const ConsoleHelper& console)
 {
@@ -24,9 +25,13 @@ void MainLoop(const ConsoleHelper& console)
 			break;
 		}
 
-		if (GetAsyncKeyState(VK_INSERT) & 1)
+		if (GetAsyncKeyState(VK_F1) & 1)
 		{
-
+			Settings::bSendPacketLog = !Settings::bSendPacketLog;
+		}
+		if (GetAsyncKeyState(VK_F2) & 1)
+		{
+			Settings::bSendPacketWrapperLog = !Settings::bSendPacketWrapperLog;
 		}
 
 		Sleep(10);

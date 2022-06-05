@@ -1,5 +1,7 @@
 #include "Hooker.hpp"
 
+#include "Settings.hpp"
+
 namespace hook
 {
 	bool Hooker::Detour32(PVOID addressToHook, PVOID hookFunc, int lenStolenBytes)
@@ -97,11 +99,10 @@ namespace hook
 
 	namespace implementations
 	{
-
 		namespace templates
 		{
 			// "this" pointer goes into ECX just like a __thiscall would do it, second one is taken from EDX BUT we don't have anything there because we are emulating a thiscall with a fastcall - brilliant
-			typedef int(__fastcall* tSendWrapper)(void* self, void* trash, int a2);
+			typedef int(__fastcall* tSendWrapper)(void* self, int a2, void* trash);
 			typedef int(WINAPI* tSend)(SOCKET s, const char* buf, int len, int flags);
 		}
 
@@ -112,6 +113,9 @@ namespace hook
 		{
 			int WINAPI HkSendPacket(SOCKET s, const char* buf, int len, int flags)
 			{
+				if (!Settings::bSendPacketLog)
+					return g_sendpacketGate(s, buf, len, flags);
+
 				if (len == sizeof packetStructs::SpellPacket)
 				{
 					packetStructs::SpellPacket packet{};
@@ -153,15 +157,18 @@ namespace hook
 				return g_sendpacketGate(s, buf, len, flags);
 			}
 
-			int __fastcall HkSendPacketWrapper(void* self, void* trash, int a2)
+			int __fastcall HkSendPacketWrapper(void* self, int a2, void* trash)
 			{
+				if (!Settings::bSendPacketWrapperLog)
+					return g_sendWrapperGate(self, a2, trash);
+
 				std::cout << "HkSendPacketWrapper["
 					<< " self: " << self
-					<< " trash?: " << trash
 					<< " a2: " << a2
+					<< " trash?: " << trash
 					<< "]\n";
 
-				return g_sendWrapperGate(self, trash, a2);
+				return g_sendWrapperGate(self, a2, trash);
 			}
 		}
 
