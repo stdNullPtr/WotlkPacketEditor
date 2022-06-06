@@ -1,7 +1,5 @@
 #include "Hooker.hpp"
 
-#include "Settings.hpp"
-
 namespace hook
 {
 	bool Hooker::Detour32(PVOID addressToHook, PVOID hookFunc, int lenStolenBytes)
@@ -102,19 +100,23 @@ namespace hook
 		namespace templates
 		{
 			// "this" pointer goes into ECX just like a __thiscall would do it, second one is taken from EDX BUT we don't have anything there because we are emulating a thiscall with a fastcall - brilliant
-			typedef int(__fastcall* tSendWrapper)(void* self, int a2, void* trash);
+			typedef int(__cdecl* tSendWrapper)(int packetWrapper);
 			typedef int(WINAPI* tSend)(SOCKET s, const char* buf, int len, int flags);
 		}
 
-		inline templates::tSend g_sendpacketGate;
-		inline templates::tSendWrapper g_sendWrapperGate;
+		namespace g
+		{
+			templates::tSend g_sendpacketGate;
+			templates::tSendWrapper g_sendWrapperGate;
+		}
+
 
 		namespace hookFunctions
 		{
 			int WINAPI HkSendPacket(SOCKET s, const char* buf, int len, int flags)
 			{
 				if (!Settings::bSendPacketLog)
-					return g_sendpacketGate(s, buf, len, flags);
+					return g::g_sendpacketGate(s, buf, len, flags);
 
 				if (len == sizeof packetStructs::SpellPacket)
 				{
@@ -154,25 +156,61 @@ namespace hook
 
 				std::cout << std::endl;
 
-				return g_sendpacketGate(s, buf, len, flags);
+				return g::g_sendpacketGate(s, buf, len, flags);
 			}
 
-			int __fastcall HkSendPacketWrapper(void* self, int a2, void* trash)
+			int __cdecl HkSendPacketWrapper(int packetWrapperPtr)
 			{
 				if (!Settings::bSendPacketWrapperLog)
-					return g_sendWrapperGate(self, a2, trash);
+					return g::g_sendWrapperGate(packetWrapperPtr);
 
-				std::cout << "HkSendPacketWrapper["
-					<< " self: " << self
-					<< " a2: " << a2
-					<< " trash?: " << trash
-					<< "]\n";
+				const auto packetWrapper{ (packetStructs::PacketWrapper*)packetWrapperPtr };
 
-				return g_sendWrapperGate(self, a2, trash);
+				const auto packetType{ (*(UINT32*)packetWrapper->packetPtr & 0xFF) };
+
+				if (packetType != 0x2E) //spell packet
+				{
+					return g::g_sendWrapperGate(packetWrapperPtr);
+				}
+				/*
+				if (packetType != 0xB5) //press W/start moving
+				{
+					return g_sendWrapperGate(packetWrapperPtr);
+				}
+				if (packetType != 0x95) //chat packet
+				{
+					return g_sendWrapperGate(packetWrapperPtr);
+				}*/
+				
+				auto packet{ std::string((char*)packetWrapper->packetPtr, packetWrapper->packetLen) };
+
+				std::cout << "PacketWrapper[";
+				std::cout << " packetWrapper: 0x" << packetWrapper;
+				std::cout << "\npacketWrapper->packetPtr: 0x" << (UINT32*)packetWrapper->packetPtr;
+				std::cout << "\npacketSize: " << packetWrapper->packetLen;
+				std::cout << "\npacket: ";
+				for (size_t i = 0; i < packetWrapper->packetLen; ++i)
+				{
+					std::cout << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << ((UINT32)packet[i] & 0xFF) << std::dec << " ";
+				}
+				if (*(packetWrapper->packetPtr + 0xA) == 0x2)
+				{
+					std::cout << " target GUID: "
+						<< std::hex
+						<< std::uppercase
+						<< std::setfill('0')
+						<< std::setw(2)
+						<< *(UINT64*)(packetWrapper->packetPtr + 0x0E)
+						<< std::dec
+						<< " ";
+				}
+				std::cout << std::endl;
+
+				return g::g_sendWrapperGate(packetWrapperPtr);
 			}
 		}
 
-		inline bool InitHooks()
+		bool InitHooks()
 		{
 			const auto hModuleWs32{ GetModuleHandle(xor ("Ws2_32.dll")) };
 			if (!hModuleWs32)
@@ -187,7 +225,7 @@ namespace hook
 				ConsoleHelper::PrintWinError();
 				return false;
 			}
-			const auto originalSendPacketWrapperAddress{ reinterpret_cast<templates::tSendWrapper>((uintptr_t)0x632B50) };
+			const auto originalSendPacketWrapperAddress{ reinterpret_cast<templates::tSendWrapper>((uintptr_t)0x6B0B50) };
 			if (!originalSendPacketAddress)
 			{
 				ConsoleHelper::PrintWinError();
@@ -195,14 +233,14 @@ namespace hook
 			}
 
 			constexpr int originalSendStolenBytesLen{ 5 };
-			constexpr int originalSendWrapperStolenBytesLen{ 6 };
+			constexpr int originalSendWrapperStolenBytesLen{ 9 };
 
 			// TODO: hooks being static with no further references is an issue - they should be available globally
 			static const Hooker sendHooker{ (PVOID)originalSendPacketAddress, (PVOID)hookFunctions::HkSendPacket, originalSendStolenBytesLen };
 			static const Hooker sendWrapperHooker{ (PVOID)originalSendPacketWrapperAddress, (PVOID)hookFunctions::HkSendPacketWrapper, originalSendWrapperStolenBytesLen };
 
-			g_sendpacketGate = (templates::tSend)sendHooker.getGatewayFuncAddress();
-			g_sendWrapperGate = (templates::tSendWrapper)sendWrapperHooker.getGatewayFuncAddress();
+			g::g_sendpacketGate = (templates::tSend)sendHooker.getGatewayFuncAddress();
+			g::g_sendWrapperGate = (templates::tSendWrapper)sendWrapperHooker.getGatewayFuncAddress();
 
 			return true;
 		}

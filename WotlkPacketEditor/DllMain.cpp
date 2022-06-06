@@ -33,6 +33,24 @@ void MainLoop(const ConsoleHelper& console)
 		{
 			Settings::bSendPacketWrapperLog = !Settings::bSendPacketWrapperLog;
 		}
+		if (GetAsyncKeyState(VK_F3) & 1)
+		{
+			const auto spellPacketWrapper{ (hook::implementations::packetStructs::PacketWrapper*)0x03B5F0E8 };
+
+			BYTE* spellPacket = (BYTE*)malloc(14);
+			const auto spellPacketBuf = "\x2E\x01\x00\x00\x03\xA8\x00\x00\x00\x00\x00\x00\x00\x00";
+			memcpy(spellPacket, spellPacketBuf, 14);
+
+			spellPacketWrapper->packetPtr = spellPacket;
+			spellPacketWrapper->packetLen = 14;
+			spellPacketWrapper->unk0_1 = 0;
+			spellPacketWrapper->unk0_2 = 0;
+			spellPacketWrapper->unk256_3 = 256;
+
+			hook::implementations::hookFunctions::HkSendPacketWrapper(0x03B5F0E8);
+			free(spellPacket);
+			Sleep(1000);
+		}
 
 		Sleep(10);
 	}

@@ -1,10 +1,12 @@
 #pragma once
 #include <iomanip>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <vector>
 #include <Windows.h>
 #include "ConsoleHelper.hpp"
+#include "Settings.hpp"
 #include "../Injector/XorStr.hpp"
 
 namespace hook {
@@ -30,10 +32,12 @@ namespace hook {
 
 	namespace implementations
 	{
+		namespace hookFunctions
+		{
+			int __cdecl HkSendPacketWrapper(int packetWrapperPtr);
+		}
 		namespace packetStructs
 		{
-
-
 #pragma pack(push,1) // keep struct alignment as-is
 			struct SpellPacket
 			{
@@ -56,6 +60,20 @@ namespace hook {
 				BYTE fCreatureTypeMaybe; //0x6 player 0xF1 NPC
 			};
 			static_assert(sizeof SelectCreaturePacket == 14);
+
+			class PacketWrapper
+			{
+			public:
+				char pad_0000[4]; //0x0000
+				BYTE* packetPtr; //0x0004
+				uint32_t unk0_1; //0x0008
+				uint32_t unk256_3; //0x000C
+				uint32_t packetLen; //0x0010
+				uint32_t unk0_2; //0x0014
+				char pad_0018[40]; //0x0018
+			}; //Size: 0x0040
+			static_assert(sizeof(PacketWrapper) == 0x40);
+
 #pragma pack(pop)
 		}
 
