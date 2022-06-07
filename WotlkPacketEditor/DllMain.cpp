@@ -11,7 +11,7 @@ void MainLoop(const ConsoleHelper& console)
 {
 	const bool initHooksResult{ hook::implementations::InitHooks() };
 
-	std::cout << xor ("[INFO] Hooks placed!") << std::endl;
+	std::cout << xor ("[INFO] Hooks placed!\n\n");
 
 	while (true)
 	{
@@ -20,7 +20,7 @@ void MainLoop(const ConsoleHelper& console)
 			break;
 		}
 
-		if (GetAsyncKeyState(VK_DELETE) & 1)
+		if (GetAsyncKeyState(VK_END) & 1)
 		{
 			break;
 		}
@@ -28,27 +28,39 @@ void MainLoop(const ConsoleHelper& console)
 		if (GetAsyncKeyState(VK_F1) & 1)
 		{
 			Settings::bSendPacketLog = !Settings::bSendPacketLog;
+			std::cout << xor ("[INFO] SendPacketLog: ") << Settings::bSendPacketLog << std::endl;
 		}
 		if (GetAsyncKeyState(VK_F2) & 1)
 		{
 			Settings::bSendPacketWrapperLog = !Settings::bSendPacketWrapperLog;
+			std::cout << xor ("[INFO] SendPacketWrapperLog: ") << Settings::bSendPacketWrapperLog << std::endl;
 		}
 		if (GetAsyncKeyState(VK_F3) & 1)
 		{
-			const auto spellPacketWrapper{ (hook::implementations::packetStructs::PacketWrapper*)0x03B5F0E8 };
+			using hook::implementations::g::g_packetWrapper;
+			using hook::implementations::g::g_spellPacketCounter;
+			using hook::implementations::packetStructs::SpellPacket;
+			using hook::implementations::packetStructs::PacketWrapper;
+			using hook::implementations::hookFunctions::HkSendPacketWrapper;
 
-			BYTE* spellPacket = (BYTE*)malloc(14);
-			const auto spellPacketBuf = "\x2E\x01\x00\x00\x03\xA8\x00\x00\x00\x00\x00\x00\x00\x00";
-			memcpy(spellPacket, spellPacketBuf, 14);
+			if (!g_packetWrapper)
+			{
+				std::cerr << xor ("[ERROR] Cast a spell first!\n");
+				continue;
+			}
 
-			spellPacketWrapper->packetPtr = spellPacket;
-			spellPacketWrapper->packetLen = 14;
+			const auto spellPacketWrapper{ static_cast<PacketWrapper*>(g_packetWrapper) };
+			const SpellPacket spellPacket{ 302, ++g_spellPacketCounter, 168, {0} };
+
+			spellPacketWrapper->packetPtr = const_cast<SpellPacket*>(&spellPacket);
+			spellPacketWrapper->packetLen = sizeof SpellPacket;
 			spellPacketWrapper->unk0_1 = 0;
 			spellPacketWrapper->unk0_2 = 0;
-			spellPacketWrapper->unk256_3 = 256;
+			// warden?
+			spellPacketWrapper->unk256_3 = 0x100;
 
-			hook::implementations::hookFunctions::HkSendPacketWrapper(0x03B5F0E8);
-			free(spellPacket);
+			HkSendPacketWrapper(static_cast<int*>(g_packetWrapper));
+
 			Sleep(1000);
 		}
 
@@ -101,4 +113,4 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReser
 	{
 	}
 	return TRUE;
-	}
+}

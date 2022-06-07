@@ -13,7 +13,7 @@ namespace hook
 
 		const uintptr_t relativeAddress = ((UINT_PTR)hookFunc - (UINT_PTR)addressToHook) - 5;
 
-		*(BYTE*)addressToHook = 0xE9;
+		*static_cast<BYTE*>(addressToHook) = 0xE9;
 		*(UINT_PTR*)((UINT_PTR)addressToHook + 1) = relativeAddress;
 
 		VirtualProtect(addressToHook, lenStolenBytes, curProtection, &curProtection);
@@ -100,23 +100,24 @@ namespace hook
 		namespace templates
 		{
 			// "this" pointer goes into ECX just like a __thiscall would do it, second one is taken from EDX BUT we don't have anything there because we are emulating a thiscall with a fastcall - brilliant
-			typedef int(__cdecl* tSendWrapper)(int packetWrapper);
+			typedef int(__cdecl* tSendWrapper)(int* packetWrapper);
 			typedef int(WINAPI* tSend)(SOCKET s, const char* buf, int len, int flags);
 		}
 
 		namespace g
 		{
-			templates::tSend g_sendpacketGate;
+			templates::tSend g_sendPacketGate;
 			templates::tSendWrapper g_sendWrapperGate;
+			PVOID g_packetWrapper = nullptr;
+			BYTE g_spellPacketCounter = 0;
 		}
-
 
 		namespace hookFunctions
 		{
 			int WINAPI HkSendPacket(SOCKET s, const char* buf, int len, int flags)
 			{
 				if (!Settings::bSendPacketLog)
-					return g::g_sendpacketGate(s, buf, len, flags);
+					return g::g_sendPacketGate(s, buf, len, flags);
 
 				if (len == sizeof packetStructs::SpellPacket)
 				{
@@ -156,62 +157,59 @@ namespace hook
 
 				std::cout << std::endl;
 
-				return g::g_sendpacketGate(s, buf, len, flags);
+				return g::g_sendPacketGate(s, buf, len, flags);
 			}
 
-			int __cdecl HkSendPacketWrapper(int packetWrapperPtr)
+			int __cdecl HkSendPacketWrapper(int* packetWrapperPtr)
 			{
+				const auto packetWrapper{ reinterpret_cast<packetStructs::PacketWrapper*>(packetWrapperPtr) };
+				const auto spellPacket{ *packetWrapper->packetPtr };
+#ifdef _DEBUG
+				const auto packetLen{ packetWrapper->packetLen };
+				const auto packetStr{ std::string(reinterpret_cast<char*>(packetWrapper->packetPtr), packetLen) };
+#endif
+				if (!g::g_packetWrapper && spellPacket.packetType == 302)
+				{
+					std::cout << xor ("Datastore pointer stolen!\n");
+					g::g_packetWrapper = static_cast<PVOID>(packetWrapperPtr);
+					g::g_spellPacketCounter = spellPacket.packetCnt;
+				}
+#ifdef _DEBUG
 				if (!Settings::bSendPacketWrapperLog)
-					return g::g_sendWrapperGate(packetWrapperPtr);
-
-				const auto packetWrapper{ (packetStructs::PacketWrapper*)packetWrapperPtr };
-
-				const auto packetType{ (*(UINT32*)packetWrapper->packetPtr & 0xFF) };
-
-				if (packetType != 0x2E) //spell packet
 				{
 					return g::g_sendWrapperGate(packetWrapperPtr);
 				}
-				/*
-				if (packetType != 0xB5) //press W/start moving
+#endif
+				if (spellPacket.packetType != 302) //spell packet
 				{
-					return g_sendWrapperGate(packetWrapperPtr);
+					return g::g_sendWrapperGate(packetWrapperPtr);
 				}
-				if (packetType != 0x95) //chat packet
+#ifdef _DEBUG
+				std::cout << xor ("PacketWrapper[");
+				std::cout << xor (" packetWrapper: 0x") << packetWrapper;
+				std::cout << xor ("\npacketWrapper->packetPtr: 0x") << packetWrapper->packetPtr;
+				std::cout << xor ("\npacketSize: ") << packetLen;
+				std::cout << xor ("\npacket counter: ") << (UINT32)(g::g_spellPacketCounter & 0xFF);
+				std::cout << xor ("\npacket Str: ");
+				for (size_t i = 0; i < packetLen; ++i)
 				{
-					return g_sendWrapperGate(packetWrapperPtr);
-				}*/
-				
-				auto packet{ std::string((char*)packetWrapper->packetPtr, packetWrapper->packetLen) };
-
-				std::cout << "PacketWrapper[";
-				std::cout << " packetWrapper: 0x" << packetWrapper;
-				std::cout << "\npacketWrapper->packetPtr: 0x" << (UINT32*)packetWrapper->packetPtr;
-				std::cout << "\npacketSize: " << packetWrapper->packetLen;
-				std::cout << "\npacket: ";
-				for (size_t i = 0; i < packetWrapper->packetLen; ++i)
-				{
-					std::cout << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << ((UINT32)packet[i] & 0xFF) << std::dec << " ";
+					std::cout << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (static_cast<UINT32>(packetStr[i]) & 0xFF) << std::dec << " ";
 				}
-				if (*(packetWrapper->packetPtr + 0xA) == 0x2)
-				{
-					std::cout << " target GUID: "
-						<< std::hex
-						<< std::uppercase
-						<< std::setfill('0')
-						<< std::setw(2)
-						<< *(UINT64*)(packetWrapper->packetPtr + 0x0E)
-						<< std::dec
-						<< " ";
-				}
+				std::cout << xor ("\npacket: spellID:") << spellPacket.spellId << " packetType:" << spellPacket.packetType << " packetCount:" << static_cast<UINT32>(spellPacket.packetCnt & 0xFF);
 				std::cout << std::endl;
-
+#endif
 				return g::g_sendWrapperGate(packetWrapperPtr);
 			}
 		}
 
 		bool InitHooks()
 		{
+			using templates::tSend;
+			using templates::tSendWrapper;
+			using g::g_sendWrapperGate;
+			using g::g_sendPacketGate;
+			using hookFunctions::HkSendPacketWrapper;
+
 			const auto hModuleWs32{ GetModuleHandle(xor ("Ws2_32.dll")) };
 			if (!hModuleWs32)
 			{
@@ -219,13 +217,13 @@ namespace hook
 				return false;
 			}
 
-			const auto originalSendPacketAddress{ reinterpret_cast<templates::tSend>(GetProcAddress(hModuleWs32,xor ("send"))) };
+			const auto originalSendPacketAddress{ reinterpret_cast<tSend>(GetProcAddress(hModuleWs32,xor ("send"))) };
 			if (!originalSendPacketAddress)
 			{
 				ConsoleHelper::PrintWinError();
 				return false;
 			}
-			const auto originalSendPacketWrapperAddress{ reinterpret_cast<templates::tSendWrapper>((uintptr_t)0x6B0B50) };
+			const auto originalSendPacketWrapperAddress{ reinterpret_cast<tSendWrapper>(static_cast<uintptr_t>(0x6B0B50)) };
 			if (!originalSendPacketAddress)
 			{
 				ConsoleHelper::PrintWinError();
@@ -237,10 +235,10 @@ namespace hook
 
 			// TODO: hooks being static with no further references is an issue - they should be available globally
 			static const Hooker sendHooker{ (PVOID)originalSendPacketAddress, (PVOID)hookFunctions::HkSendPacket, originalSendStolenBytesLen };
-			static const Hooker sendWrapperHooker{ (PVOID)originalSendPacketWrapperAddress, (PVOID)hookFunctions::HkSendPacketWrapper, originalSendWrapperStolenBytesLen };
+			static const Hooker sendWrapperHooker{ (PVOID)originalSendPacketWrapperAddress, (PVOID)HkSendPacketWrapper, originalSendWrapperStolenBytesLen };
 
-			g::g_sendpacketGate = (templates::tSend)sendHooker.getGatewayFuncAddress();
-			g::g_sendWrapperGate = (templates::tSendWrapper)sendWrapperHooker.getGatewayFuncAddress();
+			g_sendPacketGate = static_cast<tSend>(sendHooker.getGatewayFuncAddress());
+			g_sendWrapperGate = static_cast<tSendWrapper>(sendWrapperHooker.getGatewayFuncAddress());
 
 			return true;
 		}

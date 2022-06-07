@@ -34,19 +34,21 @@ namespace hook {
 	{
 		namespace hookFunctions
 		{
-			int __cdecl HkSendPacketWrapper(int packetWrapperPtr);
+			int __cdecl HkSendPacketWrapper(int* packetWrapperPtr);
+			int WINAPI HkSendPacket(SOCKET s, const char* buf, int len, int flags);
 		}
 		namespace packetStructs
 		{
 #pragma pack(push,1) // keep struct alignment as-is
-			struct SpellPacket
+			class SpellPacket
 			{
-				BYTE _pad1[6];
-				UINT8 packetCnt;
+			public:
+				UINT32 packetType;
+				BYTE packetCnt;
 				UINT32 spellId;
-				BYTE _pad2[5];
+				BYTE _pad1[5];
 			};
-			static_assert(sizeof SpellPacket == 16);
+			static_assert(sizeof SpellPacket == 14);
 
 			struct SelectCreaturePacket
 			{
@@ -65,7 +67,7 @@ namespace hook {
 			{
 			public:
 				char pad_0000[4]; //0x0000
-				BYTE* packetPtr; //0x0004
+				class SpellPacket* packetPtr; //0x0004
 				uint32_t unk0_1; //0x0008
 				uint32_t unk256_3; //0x000C
 				uint32_t packetLen; //0x0010
@@ -78,5 +80,11 @@ namespace hook {
 		}
 
 		extern bool InitHooks();
+
+		namespace g
+		{
+			extern PVOID g_packetWrapper;
+			extern BYTE g_spellPacketCounter;
+		}
 	}
 }
