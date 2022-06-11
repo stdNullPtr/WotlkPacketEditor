@@ -41,15 +41,21 @@ bool FileExists(const std::string& name)
 
 int APIENTRY WinMain(HINSTANCE hInst, HINSTANCE hInstPrev, PSTR cmdline, int cmdshow)
 {
-	const std::string dllRelativePath{ xor ("bratko.dll") };
+	const std::string dllPath{
+#ifdef _DEBUG 
+		xor (R"(E:\repos\WotlkPacketEditor\Debug\bratko.dll)")
+#else 
+		xor (R"(E:\repos\WotlkPacketEditor\Release\bratko.dll)")
+#endif
+	};
 
-	if (!FileExists(dllRelativePath))
+	if (!FileExists(dllPath))
 	{
-		MessageBox(NULL, std::string(dllRelativePath + std::string(xor (" not found!\n\nPress ok to exit."))).c_str(), "Error", MB_OK);
+		MessageBox(NULL, std::string(dllPath + std::string(xor (" not found!\n\nPress ok to exit."))).c_str(), "Error", MB_OK);
 		return EXIT_FAILURE;
 	}
 
-	const std::string dllAbsolutePath{ std::filesystem::absolute(dllRelativePath).string() };
+	const std::string dllAbsolutePath{ std::filesystem::absolute(dllPath).string() };
 
 	const std::string procName{ xor ("Wow.exe") };
 	const DWORD procId{ GetProcId(procName) };
