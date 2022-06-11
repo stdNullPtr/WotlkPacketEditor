@@ -38,7 +38,6 @@ void MainLoop(const ConsoleHelper& console)
 		if (GetAsyncKeyState(VK_F3) & 1)
 		{
 			using hook::implementations::g::g_packetWrapper;
-			using hook::implementations::g::g_spellPacketCounter;
 			using hook::implementations::packetStructs::SpellPacket;
 			using hook::implementations::packetStructs::PacketWrapper;
 			using hook::implementations::hookFunctions::HkSendPacketWrapper;
@@ -50,7 +49,7 @@ void MainLoop(const ConsoleHelper& console)
 			}
 
 			const auto spellPacketWrapper{ static_cast<PacketWrapper*>(g_packetWrapper) };
-			const SpellPacket spellPacket{ 302, ++g_spellPacketCounter, 168, {0} };
+			const SpellPacket spellPacket{ 302, 1, 168, {0} };
 
 			spellPacketWrapper->packetPtr = const_cast<SpellPacket*>(&spellPacket);
 			spellPacketWrapper->packetLen = sizeof SpellPacket;

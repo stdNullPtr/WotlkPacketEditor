@@ -8,6 +8,7 @@
 #include "ConsoleHelper.hpp"
 #include "Settings.hpp"
 #include "../Injector/XorStr.hpp"
+#include <mutex>
 
 namespace hook {
 	class Hooker
@@ -84,7 +85,6 @@ namespace hook {
 		namespace g
 		{
 			extern PVOID g_packetWrapper;
-			extern BYTE g_spellPacketCounter;
 		}
 	}
 }

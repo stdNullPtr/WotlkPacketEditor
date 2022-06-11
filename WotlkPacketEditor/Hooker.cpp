@@ -109,7 +109,6 @@ namespace hook
 			templates::tSend g_sendPacketGate;
 			templates::tSendWrapper g_sendWrapperGate;
 			PVOID g_packetWrapper = nullptr;
-			BYTE g_spellPacketCounter = 0;
 		}
 
 		namespace hookFunctions
@@ -167,12 +166,12 @@ namespace hook
 #ifdef _DEBUG
 				const auto packetLen{ packetWrapper->packetLen };
 				const auto packetStr{ std::string(reinterpret_cast<char*>(packetWrapper->packetPtr), packetLen) };
+			std::stringstream ss;
 #endif
 				if (!g::g_packetWrapper && spellPacket.packetType == 302)
 				{
 					std::cout << xor ("Datastore pointer stolen!\n");
 					g::g_packetWrapper = static_cast<PVOID>(packetWrapperPtr);
-					g::g_spellPacketCounter = spellPacket.packetCnt;
 				}
 #ifdef _DEBUG
 				if (!Settings::bSendPacketWrapperLog)
@@ -185,18 +184,20 @@ namespace hook
 					return g::g_sendWrapperGate(packetWrapperPtr);
 				}
 #ifdef _DEBUG
-				std::cout << xor ("PacketWrapper[");
-				std::cout << xor (" packetWrapper: 0x") << packetWrapper;
-				std::cout << xor ("\npacketWrapper->packetPtr: 0x") << packetWrapper->packetPtr;
-				std::cout << xor ("\npacketSize: ") << packetLen;
-				std::cout << xor ("\npacket counter: ") << (UINT32)(g::g_spellPacketCounter & 0xFF);
-				std::cout << xor ("\npacket Str: ");
+				ss << xor ("PacketWrapper[");
+				ss << xor (" packetWrapper: 0x") << packetWrapper;
+				ss << xor ("\npacketWrapper->packetPtr: 0x") << packetWrapper->packetPtr;
+				ss << xor ("\npacketSize: ") << packetLen;
+				ss << xor ("\npacket counter: ") << (UINT32)(spellPacket.packetCnt & 0xFF);
+				ss << xor ("\npacket Str: ");
 				for (size_t i = 0; i < packetLen; ++i)
 				{
-					std::cout << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (static_cast<UINT32>(packetStr[i]) & 0xFF) << std::dec << " ";
+					ss << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (static_cast<UINT32>(packetStr[i]) & 0xFF) << std::dec << " ";
 				}
-				std::cout << xor ("\npacket: spellID:") << spellPacket.spellId << " packetType:" << spellPacket.packetType << " packetCount:" << static_cast<UINT32>(spellPacket.packetCnt & 0xFF);
-				std::cout << std::endl;
+				ss << xor ("\npacket: spellID:") << spellPacket.spellId << " packetType:" << spellPacket.packetType << " packetCount:" << static_cast<UINT32>(spellPacket.packetCnt & 0xFF);
+				ss << std::endl;
+
+				std::cout << ss.str();
 #endif
 				return g::g_sendWrapperGate(packetWrapperPtr);
 			}
