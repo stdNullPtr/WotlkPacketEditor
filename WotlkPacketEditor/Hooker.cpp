@@ -166,8 +166,10 @@ namespace hook
 					std::cout << ss.str();
 				}
 
-				void HandlePacket(const PacketWrapper* packetWrapper)
+				bool HandlePacket(const PacketWrapper* packetWrapper)
 				{
+					bool wasPacketHandled{ false };
+
 					switch (packetWrapper->packetPtr->packetType)
 					{
 					case 0xB5:
@@ -180,7 +182,9 @@ namespace hook
 							std::cout << xor ("[MOVEMENT]Datastore pointer stolen!\n");
 							g::g_movementPacketWrapper = (PVOID)packetWrapper;
 						}
-						HandleMovementPacket(*(MovementPacket*)packetWrapper->packetPtr); break;
+						HandleMovementPacket(*(MovementPacket*)packetWrapper->packetPtr);
+						wasPacketHandled = true;
+						break;
 					}
 					case 0x12E:
 					{
@@ -189,10 +193,14 @@ namespace hook
 							std::cout << xor ("[SPELL]Datastore pointer stolen!\n");
 							g::g_spellPacketWrapper = (PVOID)packetWrapper;
 						}
-						HandleSpellPacket(*(SpellPacket*)packetWrapper->packetPtr); break;
+						HandleSpellPacket(*(SpellPacket*)packetWrapper->packetPtr);
+						wasPacketHandled = true;
+						break;
 					}
 					default: break;
 					}
+
+					return wasPacketHandled;
 				}
 			}
 			int WINAPI HkSendPacket(SOCKET s, const char* buf, int len, int flags)
@@ -245,11 +253,18 @@ namespace hook
 			{
 				const auto packetWrapper{ reinterpret_cast<PacketWrapper*>(packetWrapperPtr) };
 
-				helpers::HandlePacket(packetWrapper);
+				const bool wasPacketHandled{ helpers::HandlePacket(packetWrapper) };
 
 				if (Settings::bSendPacketWrapperLog)
 				{
-					helpers::DebugPrint(packetWrapper);
+					if (Settings::bLogAllPackets)
+					{
+						helpers::DebugPrint(packetWrapper);
+					}
+					else if (wasPacketHandled)
+					{
+						helpers::DebugPrint(packetWrapper);
+					}
 				}
 
 				return g::g_sendWrapperGate(packetWrapperPtr);

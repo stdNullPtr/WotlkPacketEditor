@@ -70,6 +70,12 @@ void MainLoop(const ConsoleHelper& console)
 		}
 		if (GetAsyncKeyState(VK_F4) & 1)
 		{
+			using hook::implementations::g::g_movementPacketWrapper;
+			if (!g_movementPacketWrapper)
+			{
+				std::cerr << xor ("[ERROR] walk around first!\n");
+				continue;
+			}
 
 			Sleep(1000);
 		}
