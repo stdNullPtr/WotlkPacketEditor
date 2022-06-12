@@ -1,14 +1,15 @@
 #pragma once
 #include <iomanip>
 #include <iostream>
+#include <mutex>
 #include <sstream>
 #include <string>
 #include <vector>
 #include <Windows.h>
 #include "ConsoleHelper.hpp"
+#include "Mappings.hpp"
 #include "Settings.hpp"
 #include "../Injector/XorStr.hpp"
-#include <mutex>
 
 namespace hook {
 	class Hooker
@@ -45,6 +46,7 @@ namespace hook {
 		{
 			extern PVOID g_spellPacketWrapper;
 			extern PVOID g_movementPacketWrapper;
+			extern mappings::packetStructs::MovementPacket g_prevPacket;
 		}
 	}
 }

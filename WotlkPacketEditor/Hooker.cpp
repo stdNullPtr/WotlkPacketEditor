@@ -1,7 +1,5 @@
 #include "Hooker.hpp"
 
-#include "Mappings.hpp"
-
 namespace hook
 {
 	bool Hooker::Detour32(PVOID addressToHook, PVOID hookFunc, int lenStolenBytes)
@@ -112,6 +110,7 @@ namespace hook
 			templates::tSendWrapper g_sendWrapperGate;
 			PVOID g_spellPacketWrapper = nullptr;
 			PVOID g_movementPacketWrapper = nullptr;
+			mappings::packetStructs::MovementPacket g_prevPacket{};
 		}
 
 		namespace hookFunctions
@@ -123,9 +122,26 @@ namespace hook
 			{
 				void HandleMovementPacket(MovementPacket* packet)
 				{
+					g::g_prevPacket = *packet;
+
+					DWORD p1;
+
+					p1 = *(DWORD*)((UINT32)GetModuleHandle(NULL) + 0x8D87A8u);
+					p1 = *(DWORD*)(p1 + 0x34);
+					p1 = *(DWORD*)(p1 + 0x24);
+
+					float* x = (float*)(p1 + 0x798);
+					float* y = x + 1;
+					float* z = y + 1;
+
+					*x = packet->x;
+					*y = packet->y;
+					*z = packet->z;
+
 					if (Settings::bInterceptMovement)
 					{
-						packet->rotation = 1.0f;
+						//packet->rotation = 1.0f;
+						packet->z = *z = *z + 1;
 					}
 
 					std::stringstream ss;
@@ -135,7 +151,12 @@ namespace hook
 						<< packet->y << ";"
 						<< packet->z << ";"
 						<< packet->rotation //rad
-						<< "]"
+						<< "]\n"
+						<< xor ("[MOVEMENT]coords: [")
+						<< *x << ";"
+						<< *y << ";"
+						<< *z << ";"
+						<< xor ("] - client")
 						<< std::endl;
 
 					std::cout << ss.str();
