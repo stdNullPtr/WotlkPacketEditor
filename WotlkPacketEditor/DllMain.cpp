@@ -71,13 +71,44 @@ void MainLoop(const ConsoleHelper& console)
 		if (GetAsyncKeyState(VK_F4) & 1)
 		{
 			using hook::implementations::g::g_movementPacketWrapper;
+			using mappings::packetStructs::MovementPacket;
+			using mappings::packetStructs::PacketWrapper;
+			using hook::implementations::hookFunctions::HkSendPacketWrapper;
+
 			if (!g_movementPacketWrapper)
 			{
 				std::cerr << xor ("[ERROR] walk around first!\n");
 				continue;
 			}
 
+			const auto movementPacketWrapper{ static_cast<PacketWrapper*>(g_movementPacketWrapper) };
+			MovementPacket movementPacket{};
+			constexpr BYTE buf[39]{ 0xB5u, 0x00u, 0x00u, 0x00u, 0x87u, 0xFFu, 0xACu, 0x5Fu, 0x06u, 0x01u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x34u, 0x0Bu, 0x9Du, 0x08u, 0x02u, 0xD2u, 0x0Bu, 0xC6u, 0x43u, 0xEBu, 0xE0u, 0xC2u, 0x3Bu, 0x34u, 0xA6u, 0x42u, 0x47u, 0x33u, 0xBCu, 0x40u, 0x3Eu, 0x03u, 0x00u, 0x00u };
+			memcpy(&movementPacket, buf, 39);
+
+			
+			movementPacketWrapper->packetPtr = &movementPacket;
+			movementPacketWrapper->packetLen = sizeof MovementPacket;
+			movementPacketWrapper->unk0_1 = 0;
+			movementPacketWrapper->unk0_2 = 0;
+			// warden?
+			movementPacketWrapper->unk256_3 = 0x100;
+
+			HkSendPacketWrapper(static_cast<int*>(g_movementPacketWrapper));
+
 			Sleep(1000);
+		}
+		if (GetAsyncKeyState(VK_F5) & 1)
+		{
+			Settings::bInterceptMovement = !Settings::bInterceptMovement;
+			
+			std::cout << xor ("[INFO] bInterceptMovement: ") << Settings::bInterceptMovement << std::endl;
+		}
+		if (GetAsyncKeyState(VK_F6) & 1)
+		{
+			Settings::bInterceptSpellCast = !Settings::bInterceptSpellCast;
+
+			std::cout << xor ("[INFO] bInterceptSpellCast: ") << Settings::bInterceptSpellCast << std::endl;
 		}
 
 		Sleep(10);

@@ -121,26 +121,36 @@ namespace hook
 			using mappings::packetStructs::SpellPacket;
 			namespace helpers
 			{
-				void HandleMovementPacket(const MovementPacket& packet)
+				void HandleMovementPacket(MovementPacket* packet)
 				{
+					if (Settings::bInterceptMovement)
+					{
+						packet->rotation = 1.0f;
+					}
+
 					std::stringstream ss;
-					ss << xor ("\n[MOVEMENT]packet type: ") << std::hex << std::uppercase << (packet.packetType & 0xFF) << std::dec << std::endl;
+					ss << xor ("\n[MOVEMENT]packet type: ") << std::hex << std::uppercase << (packet->packetType & 0xFF) << std::dec << std::endl;
 					ss << xor ("[MOVEMENT]coords: [")
-						<< packet.x << ";"
-						<< packet.y << ";"
-						<< packet.z << ";"
-						<< packet.rotation //rad
+						<< packet->x << ";"
+						<< packet->y << ";"
+						<< packet->z << ";"
+						<< packet->rotation //rad
 						<< "]"
 						<< std::endl;
 
 					std::cout << ss.str();
 				}
 
-				void HandleSpellPacket(const SpellPacket& spellPacket)
+				void HandleSpellPacket(SpellPacket* spellPacket)
 				{
+					if (Settings::bInterceptSpellCast)
+					{
+						spellPacket->spellId = 168u;
+					}
+
 					std::stringstream ss;
-					ss << xor ("\n[SPELL]packet counter: ") << (UINT32)(spellPacket.packetCnt & 0xFF) << std::endl;
-					ss << xor ("[SPELL]packet: spellID:") << spellPacket.spellId << " packetType:" << spellPacket.packetType << " packetCount:" << static_cast<UINT32>(spellPacket.packetCnt & 0xFF);
+					ss << xor ("\n[SPELL]packet counter: ") << (UINT32)(spellPacket->packetCnt & 0xFF) << std::endl;
+					ss << xor ("[SPELL]packet: spellID:") << spellPacket->spellId << " packetType:" << spellPacket->packetType << " packetCount:" << static_cast<UINT32>(spellPacket->packetCnt & 0xFF);
 					ss << std::endl;
 
 					std::cout << ss.str();
@@ -172,17 +182,24 @@ namespace hook
 
 					switch (packetWrapper->packetPtr->packetType)
 					{
-					case 0xB5:
-					case 0xB7:
-					case 0xEE:
-					case 0xDA:
+					case 0xB5: // W
+					case 0xB6: // S
+					case 0xB7: // STOP from W or S
+					case 0xEE: // continuous walk
+					case 0xDA: // rotate with mouse
+					case 0xBC: // A
+					case 0xBD: // D
+					case 0xBE: // STOP from A or D
+					case 0xB8: // strafe left
+					case 0xB9: // strafe right
+					case 0xBA: // stop strafe
 					{
 						if (!g::g_movementPacketWrapper)
 						{
 							std::cout << xor ("[MOVEMENT]Datastore pointer stolen!\n");
 							g::g_movementPacketWrapper = (PVOID)packetWrapper;
 						}
-						HandleMovementPacket(*(MovementPacket*)packetWrapper->packetPtr);
+						HandleMovementPacket((MovementPacket*)packetWrapper->packetPtr);
 						wasPacketHandled = true;
 						break;
 					}
@@ -193,7 +210,7 @@ namespace hook
 							std::cout << xor ("[SPELL]Datastore pointer stolen!\n");
 							g::g_spellPacketWrapper = (PVOID)packetWrapper;
 						}
-						HandleSpellPacket(*(SpellPacket*)packetWrapper->packetPtr);
+						HandleSpellPacket((SpellPacket*)packetWrapper->packetPtr);
 						wasPacketHandled = true;
 						break;
 					}

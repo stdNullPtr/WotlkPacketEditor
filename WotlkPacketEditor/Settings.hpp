@@ -10,4 +10,6 @@ public:
 	inline static bool bSendPacketLog{ false };
 	inline static bool bSendPacketWrapperLog{ false };
 	inline static bool bLogAllPackets{ false };
+	inline static bool bInterceptMovement{ false };
+	inline static bool bInterceptSpellCast{ false };
 };
