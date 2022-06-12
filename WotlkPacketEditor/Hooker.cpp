@@ -1,5 +1,7 @@
 #include "Hooker.hpp"
 
+#include "Mappings.hpp"
+
 namespace hook
 {
 	bool Hooker::Detour32(PVOID addressToHook, PVOID hookFunc, int lenStolenBytes)
@@ -108,38 +110,118 @@ namespace hook
 		{
 			templates::tSend g_sendPacketGate;
 			templates::tSendWrapper g_sendWrapperGate;
-			PVOID g_packetWrapper = nullptr;
+			PVOID g_spellPacketWrapper = nullptr;
+			PVOID g_movementPacketWrapper = nullptr;
 		}
 
 		namespace hookFunctions
 		{
+			using mappings::packetStructs::MovementPacket;
+			using mappings::packetStructs::PacketWrapper;
+			using mappings::packetStructs::SpellPacket;
+			namespace helpers
+			{
+				void HandleMovementPacket(const MovementPacket& packet)
+				{
+					std::stringstream ss;
+					ss << xor ("\n[MOVEMENT]packet type: ") << std::hex << std::uppercase << (packet.packetType & 0xFF) << std::dec << std::endl;
+					ss << xor ("[MOVEMENT]coords: [")
+						<< packet.x << ";"
+						<< packet.y << ";"
+						<< packet.z << ";"
+						<< packet.rotation //rad
+						<< "]"
+						<< std::endl;
+
+					std::cout << ss.str();
+				}
+
+				void HandleSpellPacket(const SpellPacket& spellPacket)
+				{
+					std::stringstream ss;
+					ss << xor ("\n[SPELL]packet counter: ") << (UINT32)(spellPacket.packetCnt & 0xFF) << std::endl;
+					ss << xor ("[SPELL]packet: spellID:") << spellPacket.spellId << " packetType:" << spellPacket.packetType << " packetCount:" << static_cast<UINT32>(spellPacket.packetCnt & 0xFF);
+					ss << std::endl;
+
+					std::cout << ss.str();
+				}
+
+				void DebugPrint(const PacketWrapper* packetWrapper)
+				{
+					const auto packetLen{ packetWrapper->packetLen };
+					const auto packetStr{ std::string(reinterpret_cast<char*>(packetWrapper->packetPtr), packetLen) };
+
+					std::stringstream ss;
+					ss << xor ("PacketWrapper[ ");
+					ss << xor ("packetWrapper: 0x") << packetWrapper << std::endl;
+					ss << xor ("packetWrapper->packetPtr: 0x") << packetWrapper->packetPtr << std::endl;
+					ss << xor ("PacketSize: ") << packetLen << std::endl;
+					ss << xor ("buf: ");
+					for (size_t i = 0; i < packetLen; ++i)
+					{
+						ss << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (static_cast<UINT32>(packetStr[i]) & 0xFF) << std::dec << " ";
+					}
+					ss << std::endl;
+
+					std::cout << ss.str();
+				}
+
+				void HandlePacket(const PacketWrapper* packetWrapper)
+				{
+					switch (packetWrapper->packetPtr->packetType)
+					{
+					case 0xB5:
+					case 0xB7:
+					case 0xEE:
+					case 0xDA:
+					{
+						if (!g::g_movementPacketWrapper)
+						{
+							std::cout << xor ("[MOVEMENT]Datastore pointer stolen!\n");
+							g::g_movementPacketWrapper = (PVOID)packetWrapper;
+						}
+						HandleMovementPacket(*(MovementPacket*)packetWrapper->packetPtr); break;
+					}
+					case 0x12E:
+					{
+						if (!g::g_spellPacketWrapper)
+						{
+							std::cout << xor ("[SPELL]Datastore pointer stolen!\n");
+							g::g_spellPacketWrapper = (PVOID)packetWrapper;
+						}
+						HandleSpellPacket(*(SpellPacket*)packetWrapper->packetPtr); break;
+					}
+					default: break;
+					}
+				}
+			}
 			int WINAPI HkSendPacket(SOCKET s, const char* buf, int len, int flags)
 			{
 				if (!Settings::bSendPacketLog)
 					return g::g_sendPacketGate(s, buf, len, flags);
 
-				if (len == sizeof packetStructs::SpellPacket)
+				if (len == sizeof mappings::packetStructs::SpellPacket)
 				{
-					packetStructs::SpellPacket packet{};
+					mappings::packetStructs::SpellPacket packet{};
 					memcpy(&packet, buf, len);
 					//std::cout << (UINT32)packet.packetCnt << std::endl;
 					//std::cout << (UINT32)packet.spellId << std::endl;
 					//packet.spellId = 59752;
 					//memcpy((void*)buf, &packet,  len);
 				}
-				if (len == sizeof packetStructs::SelectCreaturePacket)
+				if (len == sizeof mappings::packetStructs::SelectCreaturePacket)
 				{
-					packetStructs::SelectCreaturePacket packet{};
+					mappings::packetStructs::SelectCreaturePacket packet{};
 					memcpy(&packet, buf, len);
 					switch (packet.fCreatureTypeMaybe)
 					{
-					case packetStructs::SelectCreaturePacket::PLAYER:
+					case mappings::packetStructs::SelectCreaturePacket::PLAYER:
 					{
 
 						std::cout << "PLAYER GUID (?): [" << packet.playerGuid << "]" << std::endl;
 						break;
 					}
-					case packetStructs::SelectCreaturePacket::NPC:
+					case mappings::packetStructs::SelectCreaturePacket::NPC:
 					{
 
 						std::cout << "NPC ID: [" << packet.npcId << "]" << std::endl;
@@ -161,44 +243,15 @@ namespace hook
 
 			int __cdecl HkSendPacketWrapper(int* packetWrapperPtr)
 			{
-				const auto packetWrapper{ reinterpret_cast<packetStructs::PacketWrapper*>(packetWrapperPtr) };
-				const auto spellPacket{ *packetWrapper->packetPtr };
-#ifdef _DEBUG
-				const auto packetLen{ packetWrapper->packetLen };
-				const auto packetStr{ std::string(reinterpret_cast<char*>(packetWrapper->packetPtr), packetLen) };
-			std::stringstream ss;
-#endif
-				if (!g::g_packetWrapper && spellPacket.packetType == 302)
-				{
-					std::cout << xor ("Datastore pointer stolen!\n");
-					g::g_packetWrapper = static_cast<PVOID>(packetWrapperPtr);
-				}
-#ifdef _DEBUG
-				if (!Settings::bSendPacketWrapperLog)
-				{
-					return g::g_sendWrapperGate(packetWrapperPtr);
-				}
-#endif
-				if (spellPacket.packetType != 302) //spell packet
-				{
-					return g::g_sendWrapperGate(packetWrapperPtr);
-				}
-#ifdef _DEBUG
-				ss << xor ("PacketWrapper[");
-				ss << xor (" packetWrapper: 0x") << packetWrapper;
-				ss << xor ("\npacketWrapper->packetPtr: 0x") << packetWrapper->packetPtr;
-				ss << xor ("\npacketSize: ") << packetLen;
-				ss << xor ("\npacket counter: ") << (UINT32)(spellPacket.packetCnt & 0xFF);
-				ss << xor ("\npacket Str: ");
-				for (size_t i = 0; i < packetLen; ++i)
-				{
-					ss << std::hex << std::uppercase << std::setfill('0') << std::setw(2) << (static_cast<UINT32>(packetStr[i]) & 0xFF) << std::dec << " ";
-				}
-				ss << xor ("\npacket: spellID:") << spellPacket.spellId << " packetType:" << spellPacket.packetType << " packetCount:" << static_cast<UINT32>(spellPacket.packetCnt & 0xFF);
-				ss << std::endl;
+				const auto packetWrapper{ reinterpret_cast<PacketWrapper*>(packetWrapperPtr) };
 
-				std::cout << ss.str();
-#endif
+				helpers::HandlePacket(packetWrapper);
+
+				if (Settings::bSendPacketWrapperLog)
+				{
+					helpers::DebugPrint(packetWrapper);
+				}
+
 				return g::g_sendWrapperGate(packetWrapperPtr);
 			}
 		}

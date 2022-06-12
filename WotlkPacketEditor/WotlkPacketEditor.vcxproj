@@ -142,6 +142,7 @@
   <ItemGroup>
     <ClInclude Include="ConsoleHelper.hpp" />
     <ClInclude Include="Hooker.hpp" />
+    <ClInclude Include="Mappings.hpp" />
     <ClInclude Include="Settings.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

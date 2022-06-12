@@ -9,4 +9,5 @@ public:
 
 	inline static bool bSendPacketLog{ false };
 	inline static bool bSendPacketWrapperLog{ false };
+	inline static bool bLogAllPackets{ false };
 };

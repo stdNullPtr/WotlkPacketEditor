@@ -5,6 +5,7 @@
 #include <Windows.h>
 #include "ConsoleHelper.hpp"
 #include "Hooker.hpp"  // NOLINT(clang-diagnostic-pragma-pack)
+#include "Mappings.hpp"
 #include "Settings.hpp"
 
 void MainLoop(const ConsoleHelper& console)
@@ -35,21 +36,26 @@ void MainLoop(const ConsoleHelper& console)
 			Settings::bSendPacketWrapperLog = !Settings::bSendPacketWrapperLog;
 			std::cout << xor ("[INFO] SendPacketWrapperLog: ") << Settings::bSendPacketWrapperLog << std::endl;
 		}
+		if (GetAsyncKeyState(VK_ADD) & 1)
+		{
+			Settings::bLogAllPackets = !Settings::bLogAllPackets;
+			std::cout << xor ("[INFO] bLogAllPackets: ") << Settings::bLogAllPackets << std::endl;
+		}
 		if (GetAsyncKeyState(VK_F3) & 1)
 		{
-			using hook::implementations::g::g_packetWrapper;
-			using hook::implementations::packetStructs::SpellPacket;
-			using hook::implementations::packetStructs::PacketWrapper;
+			using hook::implementations::g::g_spellPacketWrapper;
+			using mappings::packetStructs::SpellPacket;
+			using mappings::packetStructs::PacketWrapper;
 			using hook::implementations::hookFunctions::HkSendPacketWrapper;
 
-			if (!g_packetWrapper)
+			if (!g_spellPacketWrapper)
 			{
 				std::cerr << xor ("[ERROR] Cast a spell first!\n");
 				continue;
 			}
 
-			const auto spellPacketWrapper{ static_cast<PacketWrapper*>(g_packetWrapper) };
-			const SpellPacket spellPacket{ 302, 1, 168, {0} };
+			const auto spellPacketWrapper{ static_cast<PacketWrapper*>(g_spellPacketWrapper) };
+			constexpr SpellPacket spellPacket{ {0x12E}, 1, 168, {0} };
 
 			spellPacketWrapper->packetPtr = const_cast<SpellPacket*>(&spellPacket);
 			spellPacketWrapper->packetLen = sizeof SpellPacket;
@@ -58,7 +64,12 @@ void MainLoop(const ConsoleHelper& console)
 			// warden?
 			spellPacketWrapper->unk256_3 = 0x100;
 
-			HkSendPacketWrapper(static_cast<int*>(g_packetWrapper));
+			HkSendPacketWrapper(static_cast<int*>(g_spellPacketWrapper));
+
+			Sleep(1000);
+		}
+		if (GetAsyncKeyState(VK_F4) & 1)
+		{
 
 			Sleep(1000);
 		}
