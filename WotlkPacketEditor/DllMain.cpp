@@ -47,6 +47,7 @@ void MainLoop(const ConsoleHelper& console)
 			using mappings::packetStructs::SpellPacket;
 			using mappings::packetStructs::PacketWrapper;
 			using hook::implementations::hookFunctions::HkSendPacketWrapper;
+			using mappings::enums::OPCODE;
 
 			if (!g_spellPacketWrapper)
 			{
@@ -55,7 +56,7 @@ void MainLoop(const ConsoleHelper& console)
 			}
 
 			const auto spellPacketWrapper{ static_cast<PacketWrapper*>(g_spellPacketWrapper) };
-			constexpr SpellPacket spellPacket{ {0x12E}, 1, 168, {0} };
+			constexpr SpellPacket spellPacket{ {OPCODE::CMSG_CAST_SPELL}, 1, 168, {0} };
 
 			spellPacketWrapper->packetPtr = const_cast<SpellPacket*>(&spellPacket);
 			spellPacketWrapper->packetLen = sizeof SpellPacket;
@@ -75,6 +76,7 @@ void MainLoop(const ConsoleHelper& console)
 			using mappings::packetStructs::PacketWrapper;
 			using hook::implementations::hookFunctions::HkSendPacketWrapper;
 			using hook::implementations::g::g_prevPacket;
+			using mappings::enums::OPCODE;
 
 			if (!g_movementPacketWrapper)
 			{
@@ -84,7 +86,7 @@ void MainLoop(const ConsoleHelper& console)
 
 			const auto movementPacketWrapper{ static_cast<PacketWrapper*>(g_movementPacketWrapper) };
 			MovementPacket movementPacket{g_prevPacket};
-			movementPacket.packetType = 0xB5; //start walk
+			movementPacket.packetType = OPCODE::MSG_MOVE_START_FORWARD; //start walk
 			movementPacket.z += 5.0f;
 
 			movementPacketWrapper->packetPtr = &movementPacket;
@@ -95,7 +97,7 @@ void MainLoop(const ConsoleHelper& console)
 			movementPacketWrapper->unk256_3 = 0x100;
 
 			HkSendPacketWrapper(static_cast<int*>(g_movementPacketWrapper));
-			movementPacket.packetType = 0xB7; // stop walk
+			movementPacket.packetType = OPCODE::MSG_MOVE_STOP; // stop walk
 			HkSendPacketWrapper(static_cast<int*>(g_movementPacketWrapper));
 
 			Sleep(100);

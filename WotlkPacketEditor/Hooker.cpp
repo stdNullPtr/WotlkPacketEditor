@@ -201,19 +201,11 @@ namespace hook
 				{
 					bool wasPacketHandled{ false };
 
-					switch (packetWrapper->packetPtr->packetType)
-					{
-					case 0xB5: // W
-					case 0xB6: // S
-					case 0xB7: // STOP from W or S
-					case 0xEE: // continuous walk
-					case 0xDA: // rotate with mouse
-					case 0xBC: // A
-					case 0xBD: // D
-					case 0xBE: // STOP from A or D
-					case 0xB8: // strafe left
-					case 0xB9: // strafe right
-					case 0xBA: // stop strafe
+					using mappings::enums::OPCODE;
+					const auto packetType{ packetWrapper->packetPtr->packetType };
+
+					if (packetType >= OPCODE::MSG_MOVE_START_FORWARD
+						&& packetType <= OPCODE::MSG_MOVE_HEARTBEAT)
 					{
 						if (!g::g_movementPacketWrapper)
 						{
@@ -222,9 +214,8 @@ namespace hook
 						}
 						HandleMovementPacket((MovementPacket*)packetWrapper->packetPtr);
 						wasPacketHandled = true;
-						break;
 					}
-					case 0x12E:
+					else if (packetType == OPCODE::CMSG_CAST_SPELL)
 					{
 						if (!g::g_spellPacketWrapper)
 						{
@@ -233,9 +224,6 @@ namespace hook
 						}
 						HandleSpellPacket((SpellPacket*)packetWrapper->packetPtr);
 						wasPacketHandled = true;
-						break;
-					}
-					default: break;
 					}
 
 					return wasPacketHandled;
